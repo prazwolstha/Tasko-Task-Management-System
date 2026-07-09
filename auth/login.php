@@ -15,90 +15,53 @@ if (!$conn) {
 
 $message = "";
 
-// Login Process
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $email = trim($_POST['email']);
-    $pass = $_POST['password'];
-    $role = $_POST['role'];
+    $pass  = trim($_POST['password']);
 
-    // USER LOGIN
-    if ($role == "user") {
+    // Check Admin
+    $sql = "SELECT * FROM admins WHERE email='$email'";
+    $result = mysqli_query($conn, $sql);
 
-        $sql = "SELECT * FROM users WHERE email='$email' AND role='user'";
-        $result = mysqli_query($conn, $sql);
+    if (mysqli_num_rows($result) == 1) {
 
-        if (mysqli_num_rows($result) > 0) {
+        $admin = mysqli_fetch_assoc($result);
 
-            $row = mysqli_fetch_assoc($result);
+        // Plain text password
+        if ($pass == $admin['password']) {
 
-            // If your user passwords are plain text
-            if ($pass == $row['password']) {
+            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_name'] = $admin['full_name'];
 
-                $_SESSION['user_name'] = $row['full_name'];
-                $_SESSION['role'] = $row['role'];
-
-                header("Location: ../Frontend/dashboard.php");
-                exit();
-
-            } else {
-                $message = "Incorrect Password!";
-            }
+            header("Location: ../Frontend/dashboard.php");
+            exit();
 
         } else {
-            $message = "User Not Found!";
-        }
-
-    }
-
-    // ADMIN LOGIN
-    elseif ($role == "admin") {
-
-        $sql = "SELECT * FROM admins WHERE email='$email' AND role='admin'";
-        $result = mysqli_query($conn, $sql);
-
-        if (mysqli_num_rows($result) > 0) {
-
-            $row = mysqli_fetch_assoc($result);
-
-            if (password_verify($pass, $row['password'])) {
-
-                $_SESSION['admin_name'] = $row['full_name'];
-                $_SESSION['role'] = $row['role'];
-
-                header("Location: ../Frontend/home.html");
-                exit();
-
-            } else {
-                $message = "Incorrect Password!";
-            }
-
-        } else {
-            $message = "Admin Not Found!";
+            $message = "Incorrect Email or Password!";
         }
 
     } else {
-        $message = "Please select a role.";
+        $message = "Incorrect Email or Password!";
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page - Tasko</title>
-     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="png" href="../images/tasko.png">
+    <title>Admin Login - TasKo</title>
 
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="../images/tasko.png">
 
     <style>
         *{
             margin:0;
             padding:0;
             box-sizing:border-box;
-            font-family: Arial, sans-serif;
+            font-family:Arial, sans-serif;
         }
 
         body{
@@ -106,7 +69,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             display:flex;
             justify-content:center;
             align-items:center;
-            
         }
 
         .container{
@@ -134,29 +96,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color:#444;
         }
 
-        .input-box input,
-        .input-box select{
+        .input-box input{
             width:100%;
             padding:12px;
             border:1px solid #ccc;
             border-radius:8px;
             outline:none;
-            transition:0.3s;
+            transition:.3s;
             font-size:15px;
         }
-        
-        .input-box input:focus,
-        .input-box select:focus{
+
+        .input-box input:focus{
             border-color:#2a5298;
-            box-shadow:0 0 5px rgba(42,82,152,0.5);
+            box-shadow:0 0 5px rgba(42,82,152,.5);
         }
 
         .options{
             display:flex;
-            justify-content:space-between;
-            align-items:center;
+            justify-content:flex-end;
             margin-bottom:20px;
-            font-size:14px;
         }
 
         .options a{
@@ -174,34 +132,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding:12px;
             border:none;
             border-radius:8px;
-            background:#000000;
+            background:#000;
             color:#fff;
             font-size:16px;
             cursor:pointer;
-            transition:0.3s;
+            transition:.3s;
             margin-bottom:15px;
         }
 
         .btn:hover{
-            background:#000000;
             font-size:17px;
             padding:14px;
-        }
-
-        .register{
-            text-align:center;
-            font-size:14px;
-            margin-top:10px;
-        }
-
-        .register a{
-            text-decoration:none;
-            color:#2a5298;
-            font-weight:bold;
-        }
-
-        .register a:hover{
-            text-decoration:underline;
         }
 
         .back-btn{
@@ -212,55 +153,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background:#333;
         }
 
+        .message{
+            color:red;
+            text-align:center;
+            margin-bottom:15px;
+            font-weight:bold;
+        }
+
+        .error-message{
+    color: red;
+    font-size: 14px;
+    margin-top: 5px;
+}
     </style>
 </head>
 
 <body>
 
-    <div class="container">
+<div class="container">
 
-        <h2>Login Page</h2>
+    <h2>Admin Login</h2>
 
-        <form method="POST">
+    <form method="POST">
 
-            <div class="input-box">
-                <label>Enter Email</label>
-                <input type="email" name="email" placeholder="example@gmail.com" required>
-            </div>
+        <div class="input-box">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="example@gmail.com" required>
+        </div>
 
-            <div class="input-box">
-                <label>Enter Password</label>
-                <input type="password" name="password" placeholder="Enter Password" required>
-            </div>
+        <div class="input-box">
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Enter Password" required>
+        </div>
 
-            <div class="input-box">
-                <label>Select Role</label>
+        <?php if (!empty($message)) : ?>
+        <p class="error-message"><?php echo $message; ?></p>
+    <?php endif; ?>
 
-                <select name="role" required>
-                    <option value="">-- Select Role --</option>
-                    <option value="user">User Login</option>
-                    <option value="admin">Admin Login</option>
-                </select>
-            </div>
+        <div class="options">
+            <a href="#">Forgot Password?</a>
+        </div>
 
-            <div class="options">
-                <a href="#">Forgot Password?</a>
-            </div>
+        <input type="submit" name="login" value="Login" class="btn">
 
-            <input type="submit" name="login" value="login" class="btn">
+        <button type="button" class="btn back-btn"
+            onclick="window.location.href='../Frontend/home.html'">
+            Back
+        </button>
 
-             <button type="button" class="btn back-btn">
-                <a href="../Frontend/home.html" style="color:#fff; text-decoration: none;">Back</a>
-            </button>
+    </form>
 
-            <div class="register">
-                Don't have an Account?
-                <a href="register.html">Register here</a>
-            </div>
-
-        </form>
-
-    </div>
+</div>
 
 </body>
 </html>
