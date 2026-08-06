@@ -89,11 +89,86 @@ if(isset($_POST['assignTask'])){
         '$due_date',
         '$assigned_by'
     )";
-
+    
     if(mysqli_query($conn,$sql)){
-        echo "<script>alert('Task Assigned Successfully');</script>";
+
+    // Redirect after successful insert
+    header("Location: ../Frontend/dashboard.php?task=success");
+    exit();
+
     }else{
-        echo mysqli_error($conn);
+    echo mysqli_error($conn);
+    }
+}
+//update-profile
+if(isset($_POST['admin_id'])){
+
+$id=$_POST['admin_id'];
+
+$name=mysqli_real_escape_string($conn,$_POST['full_name']);
+
+$email=mysqli_real_escape_string($conn,$_POST['email']);
+$phone=mysqli_real_escape_string($conn,$_POST['phone']);
+
+$password=trim($_POST['password']);
+
+if($password==""){
+
+$sql="UPDATE admins
+SET
+full_name='$name',
+email='$email'
+WHERE admin_id='$id'";
+
+}else{
+
+$sql="UPDATE admins
+SET
+full_name='$name',
+email='$email',
+password='$password'
+WHERE admin_id='$id'";
+
+}
+
+if(mysqli_query($conn,$sql)){
+
+header("Location:../Frontend/dashboard.php?profile=updated");
+
+exit();
+
+}
+
+}
+//change passsword
+if(isset($_POST['changePassword'])){
+
+    $admin_id = $_SESSION['admin_id'];
+
+    $current = trim($_POST['current_password']);
+    $new = trim($_POST['new_password']);
+    $confirm = trim($_POST['confirm_password']);
+
+    $sql = mysqli_query($conn,"SELECT * FROM admins WHERE admin_id='$admin_id'");
+    $admin = mysqli_fetch_assoc($sql);
+
+    if($current != $admin['password']){
+        $message = "Current password is incorrect.";
+
+    }
+    elseif($new != $confirm){
+        $message = "New password and Confirm password do not match.";
+
+    }
+    elseif(strlen($new)<6){
+        $message = "Password must be at least 6 characters.";
+
+    }
+    else{
+        mysqli_query($conn,"UPDATE admins
+        SET password='$new'
+        WHERE admin_id='$admin_id'");
+        $message = "Password changed successfully.";
     }
 }
 ?>
@@ -104,600 +179,132 @@ if(isset($_POST['assignTask'])){
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - TasKo</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
     <style>
-        *{
-            margin: 0;
-            box-sizing: border-box;
-        }
-        #logout-btn{
-            text-decoration: none;
-            border: 1px solid black;
-            border-radius: 6px;
-            background-color: black;
-            color: white;
-            padding: 8px 10px;
-            font-size: 15px;
-            font-weight: bold;
-            box-shadow: 0px 3px 10px 1px rgb(219, 219, 219);
-            cursor: pointer;
-            transition:.2s;
-        }
-
-        #logout-btn:hover{
-            background-color:white;
-            color: black;
-            font-size: 15px;
-            padding: 8px 10px;
-            transition: 0.2s;
-            box-shadow: 0px 3px 10px 1px rgb(206, 204, 204);
-            transform:scale(1.04);
-
-        }
-        .nav-center li a:hover{
-            transition: 0.3s;
-            background: #f1f0f0;
-            color: blue;
-            padding: 5px 10px;
-             border-radius: 5px;
-             font-weight: medium;
-           
-        }
-        .sidebar{
-            margin-top: 50px;
-            background: white;
-            color:black; 
-            border-radius: 10px; 
-            box-shadow: 0px 3px 10px 1px rgb(219, 219, 219);
-            width: 225px;
-            height: 100%;
-            position:fixed;
-            box-shadow:0px 3px 10px 1px rgb(245, 245, 245);
-        }
-        #sideoption{
-            margin-top: 15px;
-        }
-        #sideoption a,li{
-            text-decoration: none;
-            color: black;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-            font-weight: medium;    
-        }
-        #sideoption a:hover{
-            transition: 0.3s;
-            background: #e5ecf7;
-            color: blue;
-             border-radius: 5px;
-        }
-        .navbar{
-            height: 60px;
-        }
-        .nav-center li a{
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size:13px;
-            font-weight: normal;
-        }
-        body{
-            background-color: #f8fafc;
-        }
-        .user-name{
-            font-size: 13px;
-            margin-right: 10px;
-        }
-        .page-title{
-            font-size:22px;
-            font-weight:700;
-            color:var(--dark);
-        }
-        .page-subtitle{
-            font-size:13px;
-            color:var(--muted);
-            margin-top:2px;
-        }
-        .navbar{
-            box-shadow:0px 3px 10px 1px rgb(245, 245, 245);
-        }
-        .btn{
-            border:none;
-            background-color: #264eff;
-            color: white;
-            cursor: pointer;
-            padding: 10px 17px;
-            border-radius: 9px;
-            height: 37px;
-            margin-left: 836px;
-             transition:.2s;
-        }
-        .btn:hover{
-            background-color: #264eff;
-             transform:scale(1.03);
-             font-size: 14px;
-            box-shadow:0px 3px 10px 1px rgb(238, 238, 238);
-
-        }   
-        .btn-newtask{
-            border:none;
-            background-color: #264eff;
-            color: white;
-            cursor: pointer;
-            padding: 10px 17px;
-            border-radius: 9px;
-            height: 37px;
-            margin-left: 836px;
-             transition:.2s;
-        }
-        .btn-newtask:hover{
-            background-color: #264eff;
-             transform:scale(1.03);
-             font-size: 14px;
-            box-shadow:0px 3px 10px 1px rgb(238, 238, 238);
-
-        }   
-        .cards{
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-            gap:15px;
-           margin-top: 25px;
-           margin-left: 235px;
-        }
-        .card{
-            background:#fff;
-            border-radius:12px;
-            padding:25px;
-            box-shadow:0 4px 10px rgba(201, 201, 201, 0.08);
-            text-align:center;
-            width: 230px;
-            height: 120px;  
-            transition:.2s;
-            border-top:5px solid #3876fc;
-        }
-        .card:hover{
-            transform:scale(1.03);
-            box-shadow:0 4px 10px rgba(121, 121, 121, 0.15);
-            color: #ff0000;
-        }
-        .card h2{
-            font-size:27px;
-            margin:0;
-        }
-        .card p{
-            margin-top:10px;
-            color:#666;
-            font-size:17px;
-        }
-        .add-new-user{
-            margin-left: 250px;
-            width: 600px;
-            height: 400px;
-            border: 2px solid grey;
-            border-radius: 7px;
-            background-color: white;
-            box-shadow:0 4px 10px rgba(201, 201, 201, 0.08);
-        }
-        .label1{
-            color: grey;
-            font-size: 13px;
-        }
-        
-        .recent-task-card{
-            background:#fff;
-            border: 1px solid rgba(47, 103, 255, 0.08);
-            border-radius:15px;
-            padding:25px;
-            box-shadow:0 5px 15px rgba(77, 77, 77, 0.08);
-            margin-left:235px;
-            margin-top:30px;
-            width: 1270px;
-        }            
-        .table-header{
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            margin-bottom:20px;
-        }
-        .view-btn{
-            border:1px solid #ddd;
-            background:white;
-            padding:8px 15px;
-            border-radius:20px;
-            cursor:pointer;
-        }
-        table{
-            width:100%;
-            border-collapse:collapse;
-        }
-        th{
-            text-align:left;
-            padding:14px;
-            background:#f7f9fc;
-            color:#5d6d8a;
-            font-size:13px;
-        }
-        td{
-            padding:16px;
-            border-bottom:1px solid #eee;
-        }
-        .user-box{
-            display:flex;
-            align-items:center;
-            gap:10px;
-        }
-.avatar{
-    width:35px;
-    height:35px;
-    border-radius:50%;
-    background:#4f46e5;
-    color:white;
+        .user-info{
     display:flex;
-    justify-content:center;
-    align-items:center;
-    font-weight:bold;
-}
-.status{
-    padding:6px 14px;
-    border-radius:30px;
-    font-size:12px;
-    font-weight:600;
-}
-.completed{
-    background:#d1fae5;
-    color:#10b981;
-}
-.in-progress{
-    background:#dbeafe;
-    color:#2563eb;
-}
-.pending{
-    background:#fef3c7;
-    color:#d97706;
-}
-.page{
-    display:none;
-    animation:fade .35s ease;
-}
-.page.active{
-    display:block;
-}
-@keyframes fade{
-    from{
-        opacity:0;
-        transform:translateY(5px);
-    }
-    to{
-        opacity:1;
-        transform:translateY(0);
-    }
-}
+    align-items:center; 
+    gap:10px;
+    padding:5px ; 
+    border-radius:10px;
+    margin-left:1040px;
+    background: #d5e5ff;
+    border:1px solid var(--border);
+    cursor:pointer;
+  }
+  .user-avatar{
+    width:34px; height:34px; border-radius:50%;
+    background:#1e3a5f;
+    display:flex; align-items:center; justify-content:center;
+    color:white; font-size:13px; font-weight:700;
+  }
+  .user-label{font-size:11px;color:var(--muted);}
+  .user-name-top{font-size:13px;font-weight:700;color:var(--dark);}
 
-/*ADD USER*/
-.add-new-user-form{
-    margin-left: 240px;
-    width: 650px;
-    background: #fff;
-    padding: 18px;
-    border-radius: 11px;
-    margin-top: 10px;
+  /*=========================
+PROFILE
+=========================*/
 
-}
-.form-group{
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 18px;
-}
-.form-group label{
-    font-size: 13px;
-    font-weight: 600;
-    color: #5b6b83;
-    margin-bottom: 8px;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-}
-.form-group input,
-.form-group select{
-    width: 100%;
-    height: 45px;
-    border: 1px solid #d9e2ec;
-    border-radius: 10px;
-    padding: 0 15px;
-    font-size: 15px;
-    outline: none;
-    transition: .3s;
-    background: #fff;
-}
-.form-group input::placeholder{
-    color: #9ca3af;
-}
-.form-group input:focus,
-.form-group select:focus{
-    border-color: #2f5cff;
-    box-shadow: 0 0 8px rgba(47,92,255,.2);
-}
-.row{
-    display: flex;
-    gap: 20px;
-}
-.row .form-group{
-    flex: 1;
-}
-.btn-primary,
-.btn-secondary{
-    padding: 12px 22px;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
-    transition: .3s;
-    margin-top: 10px;
-}
-.btn-primary{
-    background: #2f5cff;
-    color: white;
-    margin-right: 10px;
-}
-.btn-primary:hover{
-    background: #2148e5;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 18px rgba(47,92,255,.25);
-}
-.btn-secondary{
-    background: white;
-    color: #222;
-    border: 1px solid #d9e2ec;
-}
-.btn-secondary:hover{
-    background: #f8fafc;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 12px rgba(0,0,0,.08);
-}
-.btn-primary i,
-.btn-secondary i{
-    margin-right: 8px;
-}
-/* Responsive */
-@media (max-width:768px){
-    form{
-        width:100%;
-    
-    .row{
-        flex-direction:column;
-        gap:0;
-    }
-    .btn-primary,
-    .btn-secondary{
-        width:100%;
-        margin-right:0;
-        margin-bottom:10px;
-    }
-}
-}
-.table-container{
-
+.profile-card{
 background:#fff;
 padding:20px;
-border-radius:16px;
-box-shadow:0 5px 15px rgba(0,0,0,.06);
-
+border-radius:18px;
+margin-left:235px;
+margin-top:70px;
+box-shadow:0 5px 15px rgba(0,0,0,.08);
 }
-
-.table-top{
-
-display:flex;
-justify-content:space-between;
-margin-bottom:20px;
-
-}
-
-.search-box{
-
-width:800px;
+.profile-header{
 display:flex;
 align-items:center;
-border:1px solid #a3a3a3;
-padding:12px;
-border-radius:10px;
-
+gap:25px;
+margin-bottom:35px;
 }
-
-.search-box i{
-
-color:#64748b;
-margin-right:10px;
-
-}
-
-.search-box input{
-
-border:none;
-outline:none;
-width:100%;
-font-size:15px;
-
-}
-
-table{
-
-width:100%;
-border-collapse:collapse;
-
-}
-
-th{
-
-padding:16px;
-background:#f8fafc;
-font-size:13px;
-text-align:left;
-color:#64748b;
-
-}
-
-td{
-
-padding:18px;
-border-bottom:1px solid #eef2f7;
-
-}
-
-tr:hover{
-
-background-color: #eaf0f5;
-
-}
-
-.badge{
-
-padding:6px 14px;
-border-radius:30px;
-font-size:12px;
-font-weight:600;
-
-}
-
-.inactive{
-
-background:#fee2e2;
-color:#ef4444;
-
-}
-
-.edit-btn{
-
-background:#dbeafe;
-color:#2563eb;
-padding:6px 12px;
-border-radius:6px;
-text-decoration:none;
-margin-right:8px;
-
-}
-
-.delete-btn{
-
-background:#fee2e2;
-color:#ef4444;
-padding:6px 10px;
-border-radius:6px;
-text-decoration:none;
-
-}
-
-.edit-btn:hover{
-
+.profile-avatar{
+width:95px;
+height:95px;
+border-radius:50%;
 background:#2563eb;
-color:white;
-
+color:#fff;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:38px;
+font-weight:bold;
 }
-
-.delete-btn:hover{
-
-background:#ef4444;
-color:white;
-
+.profile-header h2{
+margin-bottom:5px;
+color:#1e293b;
 }
-.manage-users-container{
-    width: 1270px;
-    margin-left:240px;
-    margin-top: 20px;
-    border-radius: 10px;
-    border:1px solid #dbe2ea;
-    box-shadow: 0 5px 15px rgba(0,0,0,.05);
-    background-color: white;
+.profile-header p{
+color:#64748b;
 }
-.search-form{
-    margin-left: 20px;
-    width: 650px;
-    background: #fff;
-    padding: 18px;
-    margin-top: 10px;
-}
-/*Assign Tasks CSS*/
-.assign-card{
-width:720px;
-margin-left: 240px;
-margin-top: 20px;
-background:#fff;
-padding:18px;
-border-radius:18px;
-border:1px solid #dfe6ef;
-box-shadow:0 5px 15px rgba(0,0,0,.04);
+.profile-grid{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:20px;
 }
 .form-group{
 display:flex;
 flex-direction:column;
-margin-bottom:18px;
 }
 .form-group label{
-font-size:13px;
-font-weight:700;
-color:#5d6b82;
 margin-bottom:8px;
-letter-spacing:.5px;
+font-weight:600;
+font-size:14px;
+color:#475569;
 }
-.form-group input,.form-group textarea,.form-group select{
-width:100%;
-padding:5px;
-border:1px solid #d8e1ec;
-border-radius:12px;
-font-size:13px;
+.form-group input{
+padding:13px;
+border:1px solid #dbe2ea;
+border-radius:10px;
+font-size:15px;
+transition:.3s;
+}
+.form-group input:focus{
 outline:none;
-transition:.25s;
+border-color:#2563eb;
+box-shadow:0 0 8px rgba(37,99,235,.15);
 }
-.form-group textarea{
-resize:none;
+.profile-buttons{
+margin-top:30px;
 }
-.form-group input:focus,.form-group textarea:focus,.form-group select:focus{
-border-color:#2d5cff;
-box-shadow:0 0 8px rgba(45,92,255,.18);
-}
-.row{
-display:flex;
-gap:18px;
-}
-.row .form-group{
-flex:1;
-}
-.buttons{
-margin-top:20px;
-}
-.assign-btn{
-background:#2d5cff;
+.save-btn{
+padding:12px 22px;
+background:#2563eb;
 color:#fff;
 border:none;
-padding:12px 22px;
 border-radius:10px;
 cursor:pointer;
-font-size:15px;
-font-weight:600;
-transition:.25s;
 margin-right:10px;
+transition:.3s;
 }
-.assign-btn:hover{
-background:#2149ea;
+.save-btn:hover{
+background:#1d4ed8;
 transform:translateY(-2px);
-box-shadow:0 8px 18px rgba(45,92,255,.25);
 }
-.clear-btn{
-background:#fff;
-border:1px solid #d8e1ec;
-padding:12px 20px;
+.cancel-btn{
+padding:12px 22px;
+background:#f1f5f9;
+border:none;
 border-radius:10px;
 cursor:pointer;
-font-size:15px;
-transition:.25s;
+transition:.3s;
 }
-.clear-btn:hover{
-background:#f7f9fc;
-transform:translateY(-2px);
+.cancel-btn:hover{
+background:#e2e8f0;
 }
-.assign-btn i,.clear-btn i{
-margin-right:6px;
+@media(max-width:768px){
+.profile-grid{
+grid-template-columns:1fr;
 }
-
-</style>    
+.profile-header{
+flex-direction:column;
+text-align:center;
+}
+}
+    </style>    
 </head> 
 <body>
 
@@ -708,21 +315,16 @@ margin-right:6px;
             <h3 class="website-name">TasKo</h3>
         </div>
 
-        <ul class="nav-center">
-            <li><a href="dashboard.php">Home</a></li>
-            <li><a href="#">Reviews</a></li>
-            <li><a href="#">Services</a></li>
-            <li><a href="#">Support</a></li>
-            <li><a href="#">About us</a></li>
-        </ul>    
 
-
-        <div class="user-info">
-            <span class="user-name">
-                <b>Admin:</b> <?php echo htmlspecialchars($_SESSION['admin_name']); ?>
-            </span> 
-            <button id="logout-btn" onclick="window.location.href='../auth/logout.php'"><i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i>Logout</button>
+        <div class="user-info" onclick="showPage('user-info-profile-page')">
+        <div class="user-avatar"><?= strtoupper(substr($_SESSION['admin_name'],0,1)) ?></div>
+        <div>
+          <div class="user-label">Admin</div>
+          <div class="user-name-top"><?php echo htmlspecialchars($_SESSION['admin_name']); ?>
+    </div>
         </div>
+      </div>
+      <button id="logout-btn" onclick="window.location.href='../auth/logout.php'"><i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i>Logout</button>
     </nav>
 </header>
 <div style="display: flex;">
@@ -731,21 +333,22 @@ margin-right:6px;
             <li id="sideoption" onclick="showPage('add-user-page')"><a href="#"><i class="fa-solid fa-user-plus" style="height:12px; width:12px; margin-right: 10px;"></i>Add User</a></li>
             <li id="sideoption" onclick="showPage('manage-users-page')"><a href="#"><i class="fa-solid fa-users" style="height:12px; width:12px; margin-right: 10px;"></i>Manage Users</a></li>
             <li id="sideoption" onclick="showPage('assign-task-page')"><a href="#"><i class="fa-solid fa-tasks" style="height:12px; width:12px; margin-right: 10px;"></i>Assign Tasks</a></li>
-            <li id="sideoption" onclick="showPage(' ')"><a href="#"><i class="fa-solid fa-list" style="height:12px; width:12px; margin-right: 10px;"></i>Manage Tasks</a></li>
+            <li id="sideoption" onclick="showPage('manage-tasks-page')"><a href="#"><i class="fa-solid fa-list" style="height:12px; width:12px; margin-right: 10px;"></i>Manage Tasks</a></li>
             <li id="sideoption" onclick="showPage(' ')"><a href="#"><i class="fa-solid fa-calendar-alt" style="height:12px; width:12px; margin-right: 10px;"></i>Leave Requests</a></li>
             <li id="sideoption" onclick="showPage(' ')"><a href="#"><i class="fa-solid fa-chart-line" style="height:12px; width:12px; margin-right: 10px;"></i>Reports</a></li>
     </div>
 </div>
     <section id="dashboard-page" class="page active">
-    <div class="page-section" id="dashboard" style="margin-top: 75px; margin-left:250px;">
+    <div class="page-section" id="dashboard" style="margin-top: 75px; margin-left:250px; margin-right:45px;">
         <div class="page-header" style="display: flex;">
             <div>
                 <div class="page-title">Welcome to TasKo</div>
                 <div class="page-subtitle" style="color:#666">Here's what's happening in your company today.</div>
             </div>
-            <button class="btn btn-newtask" onclick="showPage('assign-tasks',document.querySelector('.nav-item:nth-child(8)'))">
+            
+            <button class="btn btn-newtask" onclick="showPage('assign-task-page',document.querySelector('.nav-item:nth-child(8)'))">
           <i class="fa-solid fa-plus">  </i>  New Task
-        </button>
+        </button>   
         </div>
     </div>
     
@@ -825,29 +428,30 @@ margin-right:6px;
     </table>
     </div>
 </section>
+<!-- add-user page -->
 <section id="add-user-page" class="page">
     <div class="page-title" style="margin-top: 75px; margin-left:250px;">Add New User</div>
     <div class="page-subtitle" style="margin-left: 250px; color:#666">Create a new employee account</div>
-        <form action="../Backend/add_user.php" method="POST" class="add-new-user-form">
+        <form action="../Backend/add_user.php" method="POST" class="add-new-user-form" id="addUserForm">
 
     <div class="form-group">
         <label>FIRST NAME <label style="color: red;">*</label></label>
-        <input type="text" name="first_name" placeholder="Enter First Name" required>
+        <input type="text" name="first_name" id="first_name" placeholder="Enter First Name" >
     </div>
 
     <div class="form-group">
         <label>LAST NAME <label style="color: red;">*</label></label>
-        <input type="text" name="last_name" placeholder="Enter Last Name" required>
+        <input type="text" name="last_name" id="last_name" placeholder="Enter Last Name" >
     </div>
 
     <div class="form-group">
-        <label>EMAIL <label style="color: red;">*</label></label>
-        <input type="email" name="email" placeholder="example@gmail.com" required>
+        <label>EMAIL <label style="color: red;">*</label></label>   
+        <input type="email" name="email" id="email" placeholder="example@gmail.com" >
     </div>
 
     <div class="form-group">
         <label>PHONE <label style="color: red;">*</label></label>
-        <input type="text" name="phone" placeholder="98XXXXXXXX" required>
+        <input type="text" name="phone" id="phone" placeholder="98XXXXXXXX" >
     </div>
 
     <div class="row">
@@ -855,7 +459,7 @@ margin-right:6px;
         <div class="form-group">
             <label>DEPARTMENT <label style="color: red;">*</label></label>
 
-            <select name="department" required>
+            <select name="department" id="department" >
                 <option value="">Select Department</option>
                 <option>Development</option>
                 <option>UI/UX Design</option>
@@ -868,7 +472,7 @@ margin-right:6px;
         <div class="form-group">
             <label>ROLE <label style="color: red;">*</label></label>
 
-            <select name="role" required>
+            <select name="role" id="role" >
                 <option value="">Select Role</option>
                 <option>Frontend Developer</option>
                 <option>Backend Developer</option>
@@ -884,13 +488,13 @@ margin-right:6px;
 
         <div class="form-group">
             <label>PASSWORD <label style="color: red;">*</label></label>
-            <input type="password" name="password" placeholder="Create Password" required>
+            <input type="password" name="password" id="password" placeholder="Create Password" >
         </div>
 
         <div class="form-group">
             <label>STATUS <label style="color: red;">*</label></label>
 
-            <select name="status">
+            <select name="status" id="status" >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
             </select>
@@ -910,6 +514,7 @@ margin-right:6px;
     </button>
 
 </form>
+
 </section>
 
 <!--Manage Users page-->
@@ -935,7 +540,7 @@ $result = mysqli_query($conn,$sql);
                 <div class="page-title">Manage Users</div>
                 <div class="page-subtitle" style="color:#666"><?php echo $totalUsers; ?> Total Users</div>
             </div>
-            <button class="btn btn-newtask" onclick="showPage('add-user-page',document.querySelector('.nav-item:nth-child(8)'))" style="margin-left: 975px;">
+            <button class="btn btn-newtask" onclick="showPage('add-user-page',document.querySelector('.nav-item:nth-child(8)'))" style="margin-right: 45px;">
           <i class="fa-solid fa-plus">  </i>  Add User
         </button>
         </div>
@@ -1040,9 +645,8 @@ $result = mysqli_query($conn,$sql);
         </tbody>
     </table>
 </div>
-
-<!--Assign Task Section-->
 </section>
+<!--Assign Task Section-->
 <section id="assign-task-page" class="page">
     <div class="page-title" style="margin-top: 75px; margin-left:250px;">Assign Task</div>
     <div class="page-subtitle" style="margin-left: 250px; color:#666">Create and assign tasks to users</div>
@@ -1124,7 +728,348 @@ while($user=mysqli_fetch_assoc($users)){
 </form>
 </div>
 </section>
-<script src="dashboard.js"></script>
 
+<!--Manage Tasks Section-->
+<!-- ==========================
+        MANAGE TASKS
+=========================== -->
+
+<section id="manage-tasks-page" class="page">
+<?php
+$search = "";
+if(isset($_GET['task_search'])){
+    $search = mysqli_real_escape_string($conn,$_GET['task_search']);
+}
+$sql = "SELECT
+            tasks.*,
+            users.first_name,
+            users.last_name
+        FROM tasks
+        INNER JOIN users
+        ON tasks.user_id = users.user_id
+        WHERE
+            tasks.title LIKE '%$search%'
+            OR users.first_name LIKE '%$search%'
+            OR users.last_name LIKE '%$search%'
+        ORDER BY task_id DESC";
+
+$result = mysqli_query($conn,$sql);
+?>
+
+<div class="page-header">
+    <div>
+        <h2>Manage Tasks</h2>
+        <p>Manage and monitor all assigned tasks.</p>
+    </div>
+</div>
+<div class="manage-task-card" style="height: 640px; margin-top: 30px;">
+<div class="table-top">
+<form method="GET">
+<div class="search-box">
+<i class="fa-solid fa-magnifying-glass"></i>
+<input type="text" name="task_search" placeholder="Search task..." value="<?php echo htmlspecialchars($search); ?>">
+</div>
+</form>
+</div>
+
+<div class="table-responsive">
+<table class="task-table">
+
+<thead>
+    <tr>
+        <th>ID</th>
+        <th>Task</th>
+        <th>Assigned To</th>
+        <th>Priority</th>
+        <th>Start Date</th>
+        <th>Due Date</th>
+        <th>Progress</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+</thead>
+<tbody>
+
+<?php
+if(mysqli_num_rows($result)>0){
+$sn=1;
+while($row=mysqli_fetch_assoc($result)){
+$name=$row['first_name']." ".$row['last_name'];
+$avatar=strtoupper(substr($row['first_name'],0,1));
+?>
+
+<tr>
+    <td><?php echo $sn++; ?></td>
+    <td>
+        <div class="task-info">
+            <strong><?php echo $row['title']; ?></strong><br>
+            <small><?php echo substr($row['description'],0,40);?>...</small>
+        </div>
+    </td>
+    <td>
+        <div class="employee">
+            <div class="avatar">
+                <?php echo $avatar; ?>
+            </div>
+            <div>
+                <?php echo $name; ?>
+            </div>
+        </div>
+    </td>
+    <td>
+        <?php 
+             if($row['priority']=="High"){
+                echo "<span class='priority high'>High</span>";
+                }
+                elseif($row['priority']=="Medium"){
+                    echo "<span class='priority medium'>Medium</span>";
+                }
+                else{
+                    echo "<span class='priority low'>Low</span>";
+                }
+            ?>
+    </td>
+    <td>
+        <?php
+             echo date("d M Y",strtotime($row['start_date']));
+        ?>
+    </td>
+    <td>
+        <?php
+             echo date("d M Y",strtotime($row['due_date']));
+        ?>
+    </td>
+    <td>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width:<?php echo $row['progress']; ?>%;"></div>
+        </div>
+        <span>
+            <?php echo $row['progress']; ?>%
+        </span>
+    </td>
+    <td>
+        <?php
+             $status=$row['status'];
+             $class="";
+             
+             if($status=="Completed"){
+                $class="completed";
+             }
+             elseif($status=="In Progress"){
+                $class="inprogress";
+             }
+             else{
+                $class="pending";
+             }
+        ?>
+<span class="status <?php echo $class; ?>"><?php echo $status; ?></span>
+    </td>
+        <td>
+            <a href="edit_task.php?id=<?php echo $row['task_id']; ?>" class="action-btn edit">
+                <i class="fa-solid fa-pen"></i>
+            </a>
+            <a href="../Backend/delete_task_process.php?id=<?php echo $row['task_id']; ?>" class="action-btn delete" onclick="return confirm('Delete this task?')">
+                <i class="fa-solid fa-trash"></i>
+            </a>
+        </td>
+</tr>
+<?php
+}
+}else{
+?>
+
+<tr>
+    <td colspan="9" style="text-align:center;padding:25px;">No Tasks Found</td>
+</tr>
+
+<?php } ?>
+</tbody>
+</table>
+</div>
+<!-- Pagination (Ready for Future) -->
+<div class="pagination">
+<button disabled>Previous</button>
+<span>Page 1</span>
+<button disabled>Next</button>
+</div>
+</div>
+</section>
+
+<!--User Info Profile Page-->
+<section id="user-info-profile-page" class="page">
+
+<?php
+$admin_id=$_SESSION['admin_id'];
+$sql=mysqli_query($conn,
+"SELECT * FROM admins WHERE admin_id='$admin_id'");
+$admin=mysqli_fetch_assoc($sql);
+
+?>
+<div class="profile-card">
+<div class="profile-header">
+    
+<div class="profile-avatar">
+<?php
+echo strtoupper(substr($admin['full_name'],0,1));
+?>
+</div>
+
+<div>
+<h2>
+<?php
+echo $admin['full_name'];
+?>
+</h2>
+
+<p>Admin</p>
+
+</div>
+<button  class="save-btn" onclick="showPage('change-password-page')" style="margin-left:750px; background-color:black; color:white;">
+<i class="fa-solid fa-floppy-disk"></i>
+Change Password
+</button>
+</div>
+
+<form action="../Backend/update_profile.php" method="POST">
+<input
+type="hidden"
+name="admin_id"
+value="<?php echo $admin['admin_id']; ?>">
+
+<div class="profile-grid">
+<div class="form-group">
+<label>Full Name</label>
+<input type="text" name="full_name" value="<?php echo $admin['full_name']; ?>">
+</div>
+
+<div class="form-group">
+<label>Email</label>
+<input
+type="email"
+name="email"
+value="<?php echo $admin['email']; ?>">
+</div>
+
+<div class="form-group">
+<label>Phone Number</label>
+<input
+type="number"
+name="phone"
+value="<?php echo $admin['phone']; ?>">
+</div>
+
+
+<div class="form-group">
+<label>Joined</label>
+<input
+type="text"
+value="<?php echo date("d M Y",strtotime($admin['created_at'])); ?>"
+readonly>
+</div>
+</div>
+
+<div class="profile-buttons">
+<button type="submit" class="save-btn">
+<i class="fa-solid fa-floppy-disk"></i>
+Save Changes
+</button>
+
+
+<button
+type="reset"
+class="cancel-btn">
+<i class="fa-solid fa-rotate-left"></i>
+Reset
+</button>
+</div>
+</form>
+</div>
+</section>
+
+<!--Change Password Page-->
+<section id="change-password-page" class="page">
+
+<?php
+$message = "";
+?>
+
+<div class="change-password-page" style="margin-top: 75px; margin-left:250px; margin-right:45px;">
+<div class="change-password-container">
+
+<div class="page-title">
+<h2>Change Password</h2>
+<p>Update your account password.</p>
+</div>
+
+<?php
+if($message!=""){
+?>
+<div class="success-message">
+    <?php echo $message; ?>
+</div>
+<?php } ?>
+
+<form method="POST" action="">
+<div class="password-group">
+<label>Current Password</label>
+<div class="password-box">
+
+<input type="password" id="currentPassword" name="current_password" required>
+<i class="fa-solid fa-eye" onclick="togglePassword('currentPassword',this)"> </i>
+
+</div>
+</div>
+
+<div class="password-group">
+<label>New Password</label>
+<div class="password-box">
+
+<input type="password" id="newPassword" name="new_password" required>
+<i class="fa-solid fa-eye" onclick="togglePassword('newPassword',this)"> </i>
+
+</div>
+</div>
+
+<div class="password-group">
+<label>Confirm Password</label>
+<div class="password-box">
+
+<input type="password" id="confirmPassword" name="confirm_password" required>
+
+<i class="fa-solid fa-eye" onclick="togglePassword('confirmPassword',this)"> </i>
+
+</div>
+</div>
+
+<div class="password-buttons">
+<button type="submit" class="btn-primary"
+name="changePassword">
+
+<i class="fa-solid fa-key"></i>
+
+Update Password
+
+</button>
+
+<button
+type="reset"
+class="btn-secondary">
+
+<i class="fa-solid fa-rotate-left"></i>
+
+Clear
+
+</button>
+
+</div>
+
+</form>
+
+</div>
+</div>
+</section>
+
+<script src="dashboard.js"></script>
+<script src="../Frontend/add_user.js"></script>
 </body>
 </html>
