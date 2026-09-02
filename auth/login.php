@@ -31,7 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Plain text password
         if ($pass == $admin['password']) {
 
-            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_id'] = $admin['admin_id'];
             $_SESSION['admin_name'] = $admin['full_name'];
 
             header("Location: ../Frontend/dashboard.php");
@@ -191,7 +191,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <?php endif; ?>
 
         <div class="options">
-            <a href="#">Forgot Password?</a>
+            <a href="forgot_password.php?type=admin">Forgot Password?</a>
         </div>
 
         <input type="submit" name="login" value="Login" class="btn">
