@@ -15,13 +15,14 @@ body{
     left: 0;
     z-index: 1000;
     justify-content: space-between;
+    font-size: 10px;
     align-items: center;
     width: 100%;
     height: 70px;
-    background-color: rgb(255, 255, 255);
+    background-color: white;
     color: rgb(0, 0, 0);
     padding: 0px 50px;
-    box-shadow: 0px 3px 10px 1px rgb(175, 173, 173);
+    box-shadow: 0px 3px 10px 1px rgb(231 231 231);
 }
 .nav-left{
     display: flex;
@@ -44,12 +45,15 @@ body{
     gap: 30px;
     list-style: none;
     text-shadow: 2px 2px 4px rgb(233, 230, 230);
+    padding: 5px 10px;
+    border-radius: 5px;
 }
 .nav-center li a{
     color: rgb(0, 0, 0);
     text-decoration: none;
-    font-size: 15px;
-    font-weight: bold;
+    font-size: 20px;
+    
+    
 }
 .nav-right{
     display:flex;
@@ -233,40 +237,6 @@ body{
   min-height: calc(100vh - 65px);
 }
 
-/* ── Sidebar ── */
-.sidebar {
-  background: white;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  padding: 8px 0;
-  min-width: 200px;
-  height: fit-content;
-}
-
-.sidebar a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 22px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #111827;
-  text-decoration: none;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.sidebar a:last-child {
-  border-bottom: none;
-}
-
-.sidebar a:hover {
-  background: #f9fafb;
-}
-
-.sidebar a i {
-  font-size: 18px;
-  color: #6b7280;
-}
 
 /* ── Main Content ── */
 .main {

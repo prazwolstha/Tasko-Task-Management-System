@@ -18,6 +18,32 @@ if (!$conn) {
     die("Connection Failed: " . mysqli_connect_error());
 }
 
+// CURRENT DASHBOARD PAGE
+
+
+$page = $_GET['page'] ?? 'dashboard';
+
+$allowedPages = [
+    'dashboard',
+    'add-user',
+    'manage-users',
+    'assign-tasks',
+    'manage-tasks',
+    'leave-requests',
+    'reports'
+];
+
+if (!in_array($page, $allowedPages)) {
+    $page = 'dashboard';
+}
+
+
+// Database
+$conn = mysqli_connect("localhost", "root", "", "tasko");
+
+if (!$conn) {
+    die("Connection Failed: " . mysqli_connect_error());
+}
 // Total Users
 $result = mysqli_query($conn, "SELECT COUNT(*) AS total FROM users");
 $totalUsers = mysqli_fetch_assoc($result)['total'];
@@ -171,6 +197,313 @@ if(isset($_POST['changePassword'])){
         $message = "Password changed successfully.";
     }
 }
+
+// =====================================================
+// PROFESSIONAL REPORTS
+// =====================================================
+
+// -----------------------------------------------------
+// 1. TASK STATUS
+// -----------------------------------------------------
+
+$completedResult = mysqli_query(
+    $conn,
+    "SELECT COUNT(*) AS total
+     FROM tasks
+     WHERE status = 'Completed'"
+);
+
+$completedTasks =
+    (int)mysqli_fetch_assoc($completedResult)['total'];
+
+
+$inProgressResult = mysqli_query(
+    $conn,
+    "SELECT COUNT(*) AS total
+     FROM tasks
+     WHERE status = 'In Progress'"
+);
+
+$inProgressTasks =
+    (int)mysqli_fetch_assoc($inProgressResult)['total'];
+
+
+// Pending tasks that are NOT overdue
+$pendingResult = mysqli_query(
+    $conn,
+    "SELECT COUNT(*) AS total
+     FROM tasks
+     WHERE status = 'Pending'
+     AND (
+         due_date IS NULL
+         OR due_date >= CURDATE()
+     )"
+);
+
+$pendingTasks =
+    (int)mysqli_fetch_assoc($pendingResult)['total'];
+
+
+// Overdue tasks
+$overdueResult = mysqli_query(
+    $conn,
+    "SELECT COUNT(*) AS total
+     FROM tasks
+     WHERE due_date < CURDATE()
+     AND status != 'Completed'"
+);
+
+$overdueTasks =
+    (int)mysqli_fetch_assoc($overdueResult)['total'];
+
+
+// -----------------------------------------------------
+// 2. EMPLOYEE PERFORMANCE
+// -----------------------------------------------------
+
+$employeePerformanceQuery = "
+
+    SELECT
+
+        users.user_id,
+
+        users.first_name,
+
+        users.last_name,
+
+        COUNT(tasks.task_id) AS assigned_tasks,
+
+        SUM(
+            CASE
+                WHEN tasks.status = 'Completed'
+                THEN 1
+                ELSE 0
+            END
+        ) AS completed_tasks,
+
+        SUM(
+            CASE
+                WHEN tasks.status = 'Pending'
+                AND (
+                    tasks.due_date IS NULL
+                    OR tasks.due_date >= CURDATE()
+                )
+                THEN 1
+                ELSE 0
+            END
+        ) AS pending_tasks,
+
+        SUM(
+            CASE
+                WHEN tasks.due_date < CURDATE()
+                AND tasks.status != 'Completed'
+                THEN 1
+                ELSE 0
+            END
+        ) AS overdue_tasks
+
+    FROM users
+
+    LEFT JOIN tasks
+        ON users.user_id = tasks.user_id
+
+    GROUP BY
+        users.user_id,
+        users.first_name,
+        users.last_name
+
+    ORDER BY completed_tasks DESC
+
+";
+
+$employeePerformance = mysqli_query(
+    $conn,
+    $employeePerformanceQuery
+);
+
+$employeeNames = [];
+$employeeCompleted = [];
+
+while ($employee = mysqli_fetch_assoc($employeePerformance)) {
+
+    $employeeNames[] =
+        $employee['first_name'] . ' ' . $employee['last_name'];
+
+    $employeeCompleted[] =
+        (int)$employee['completed_tasks'];
+}
+
+// -----------------------------------------------------
+// 3. COMPLETED TASK TREND - LAST 7 DAYS
+// -----------------------------------------------------
+
+$trendQuery = "
+
+    SELECT
+
+        DATE(completed_at) AS completion_date,
+
+        COUNT(*) AS completed_count
+
+    FROM tasks
+
+    WHERE status = 'Completed'
+
+    AND completed_at >= DATE_SUB(
+        CURDATE(),
+        INTERVAL 6 DAY
+    )
+
+    GROUP BY DATE(completed_at)
+
+    ORDER BY completion_date ASC
+
+";
+
+$trendResult = mysqli_query(
+    $conn,
+    $trendQuery
+);
+
+
+// Create arrays for the chart
+$trendLabels = [];
+$trendValues = [];
+
+while ($trend = mysqli_fetch_assoc($trendResult)) {
+
+    $trendLabels[] = date(
+        "D",
+        strtotime($trend['completion_date'])
+    );
+
+    $trendValues[] =
+        (int)$trend['completed_count'];
+}
+
+// ==========================================
+// ADMIN DASHBOARD STATISTICS
+// ==========================================
+
+
+// ------------------------------------------
+// TOTAL USERS
+// ------------------------------------------
+
+$totalQuery = "
+    SELECT COUNT(*) AS total
+    FROM users
+";
+
+$totalResult = mysqli_query($conn, $totalQuery);
+
+$totalUsers = 0;
+
+if ($totalResult) {
+    $totalData = mysqli_fetch_assoc($totalResult);
+    $totalUsers = $totalData['total'];
+}
+
+
+// ------------------------------------------
+// ACTIVE USERS
+// ------------------------------------------
+
+$activeQuery = "
+    SELECT COUNT(*) AS total
+    FROM users
+    WHERE status = 'Active'
+";
+
+$activeResult = mysqli_query($conn, $activeQuery);
+
+$activeUsers = 0;
+
+if ($activeResult) {
+    $activeData = mysqli_fetch_assoc($activeResult);
+    $activeUsers = $activeData['total'];
+}
+
+
+// ------------------------------------------
+// INACTIVE USERS
+// ------------------------------------------
+
+$inactiveQuery = "
+    SELECT COUNT(*) AS total
+    FROM users
+    WHERE status = 'Inactive'
+";
+
+$inactiveResult = mysqli_query($conn, $inactiveQuery);
+
+$inactiveUsers = 0;
+
+if ($inactiveResult) {
+    $inactiveData = mysqli_fetch_assoc($inactiveResult);
+    $inactiveUsers = $inactiveData['total'];
+}
+
+
+// ------------------------------------------
+// USERS BY DEPARTMENT
+// ------------------------------------------
+
+$departmentQuery = "
+    SELECT department, COUNT(*) AS total
+    FROM users
+    WHERE department IS NOT NULL
+    AND department != ''
+    GROUP BY department
+    ORDER BY total DESC
+";
+
+$departmentResult = mysqli_query($conn, $departmentQuery);
+
+
+// ------------------------------------------
+// RECENTLY ADDED USERS
+// ------------------------------------------
+
+$recentQuery = "
+    SELECT
+        first_name,
+        last_name,
+        department,
+        role,
+        created_at
+    FROM users
+    ORDER BY created_at DESC
+    LIMIT 3
+";
+
+$recentResult = mysqli_query($conn, $recentQuery);
+
+// =====================================================
+// LEAVE REQUESTS
+// =====================================================
+$leaveQuery = "
+    SELECT
+        leave_requests.leave_id,
+        leave_requests.leave_type,
+        leave_requests.start_date,
+        leave_requests.end_date,
+        leave_requests.reason,
+        leave_requests.status,
+        leave_requests.created_at,
+        users.first_name,
+        users.last_name
+    FROM leave_requests
+    INNER JOIN users
+        ON leave_requests.user_id = users.user_id
+    ORDER BY leave_requests.created_at DESC
+";
+$leaveResult = mysqli_query($conn, $leaveQuery);
+
+if (!$leaveResult) {
+    die("Leave Request Query Error: " . mysqli_error($conn));
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -304,6 +637,131 @@ flex-direction:column;
 text-align:center;
 }
 }
+
+/* =========================
+   SIDEBAR
+========================= */
+
+.sidebar {
+    position: fixed;
+    top: 70.7px;
+    left: 0;
+
+    width: 230px;
+    height: calc(100vh - 50px);
+
+    background: #ffffff;
+
+    padding: 20px 12px;
+
+    box-sizing: border-box;
+
+    border-right: 1px solid #e5e7eb;
+
+    overflow-y: auto;
+
+    z-index: 1000;
+}
+
+
+/* =========================
+   SIDEBAR ITEMS
+========================= */
+
+.sidebar .nav-item {
+    display: block;
+
+    width: 100%;
+
+    margin: 6px 0;
+    padding: 0;
+
+    list-style: none;
+
+    box-sizing: border-box;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+}
+
+
+/* =========================
+   SIDEBAR LINKS
+========================= */
+
+.sidebar .nav-item a {
+    display: flex;
+
+    align-items: center;
+
+    width: 100%;
+
+    min-height: 45px;
+
+    padding: 0 15px;
+
+    box-sizing: border-box;
+
+    text-decoration: none;
+
+    color: #555;
+
+    border-radius: 8px;
+
+    font-size: 14px;
+}
+
+
+/* =========================
+   ICON
+========================= */
+
+.sidebar .nav-item a i {
+    width: 20px;
+
+    min-width: 20px;
+
+    margin-right: 12px;
+
+    text-align: center;
+
+    color: #666;
+}
+
+
+/* =========================
+   HOVER
+========================= */
+
+.sidebar .nav-item:hover {
+    background: #f1f5f9;
+}
+
+.sidebar .nav-item:hover a {
+    color: #2563eb;
+}
+
+.sidebar .nav-item:hover a i {
+    color: #2563eb;
+}
+
+
+/* =========================
+   ACTIVE
+========================= */
+
+.sidebar .nav-item.active {
+    background: #2563eb;
+}
+
+.sidebar .nav-item.active a {
+    color: #ffffff;
+}
+
+.sidebar .nav-item.active a i {
+    color: #ffffff;
+}
     </style>    
 </head> 
 <body>
@@ -328,27 +786,79 @@ text-align:center;
     </nav>
 </header>
 <div style="display: flex;">
-    <div class="sidebar" style="margin-top:50px;">
-            <li id="sideoption" onclick="showPage('dashboard-page')"><a href="#"><i class="fa-solid fa-house" style="height:12px; width:12px; margin-right: 10px;"></i>Dashboard</a></li>
-            <li id="sideoption" onclick="showPage('add-user-page')"><a href="#"><i class="fa-solid fa-user-plus" style="height:12px; width:12px; margin-right: 10px;"></i>Add User</a></li>
-            <li id="sideoption" onclick="showPage('manage-users-page')"><a href="#"><i class="fa-solid fa-users" style="height:12px; width:12px; margin-right: 10px;"></i>Manage Users</a></li>
-            <li id="sideoption" onclick="showPage('assign-task-page')"><a href="#"><i class="fa-solid fa-tasks" style="height:12px; width:12px; margin-right: 10px;"></i>Assign Tasks</a></li>
-            <li id="sideoption" onclick="showPage('manage-tasks-page')"><a href="#"><i class="fa-solid fa-list" style="height:12px; width:12px; margin-right: 10px;"></i>Manage Tasks</a></li>
-            <li id="sideoption" onclick="showPage(' ')"><a href="#"><i class="fa-solid fa-calendar-alt" style="height:12px; width:12px; margin-right: 10px;"></i>Leave Requests</a></li>
-            <li id="sideoption" onclick="showPage(' ')"><a href="#"><i class="fa-solid fa-chart-line" style="height:12px; width:12px; margin-right: 10px;"></i>Reports</a></li>
-    </div>
+    <div class="sidebar">
+
+    <li class="nav-item active" onclick="showPage('dashboard-page', this)">
+        <a href="javascript:void(0)">
+            <i class="fa-solid fa-house"></i>
+            Dashboard
+        </a>
+    </li>
+
+    <li class="nav-item" id="addUserNav"
+    onclick="showPage('add-user-page', this)">
+
+    <a href="javascript:void(0)">
+        <i class="fa-solid fa-user-plus"></i>
+        Add User
+    </a>
+
+</li>
+
+    <li class="nav-item" onclick="showPage('manage-users-page', this)">
+        <a href="javascript:void(0)">
+            <i class="fa-solid fa-users"></i>
+            Manage Users
+        </a>
+    </li>
+
+    <li class="nav-item" id="assignTaskNav"
+    onclick="showPage('assign-task-page', this)">
+    <a href="javascript:void(0)">
+        <i class="fa-solid fa-tasks"></i>
+        Assign Tasks
+    </a>
+</li>
+
+    <li class="nav-item" onclick="showPage('manage-tasks-page', this)">
+        <a href="javascript:void(0)">
+            <i class="fa-solid fa-list"></i>
+            Manage Tasks
+        </a>
+    </li>
+
+    <li class="nav-item" onclick="showPage('leave-request-page', this)">
+        <a href="javascript:void(0)">
+            <i class="fa-solid fa-calendar-alt"></i>
+            Leave Requests
+        </a>
+    </li>
+
+    <li class="nav-item" onclick="showPage('reports-page', this)">
+        <a href="javascript:void(0)">
+            <i class="fa-solid fa-chart-line"></i>
+            Reports
+        </a>
+    </li>
+
 </div>
-    <section id="dashboard-page" class="page active">
+</div>
+
+    <section id="dashboard-page"
+    class="page <?php echo ($page === 'dashboard') ? 'active' : ''; ?>">
+
     <div class="page-section" id="dashboard" style="margin-top: 75px; margin-left:250px; margin-right:45px;">
         <div class="page-header" style="display: flex;">
             <div>
                 <div class="page-title">Welcome to TasKo</div>
-                <div class="page-subtitle" style="color:#666">Here's what's happening in your company today.</div>
+                <div class="page-subtitle" style="width:350px; color:#666">Here's what's happening in your company today.</div>
             </div>
             
-            <button class="btn btn-newtask" onclick="showPage('assign-task-page',document.querySelector('.nav-item:nth-child(8)'))">
-          <i class="fa-solid fa-plus">  </i>  New Task
-        </button>   
+            <button class="btn btn-newtask" onclick="showPage('assign-task-page', document.getElementById('assignTaskNav'))">
+                <i class="fa-solid fa-plus"></i>
+                New Task
+            </button>
+        
         </div>
     </div>
     
@@ -403,7 +913,7 @@ text-align:center;
             ?>
         
             <tr>
-                <td><b><?php echo $row['title']; ?></b></td>
+                <td><p><?php echo $row['title']; ?></p></td>
                 <td>
                     <div class="user-box">
                         <div class="avatar">
@@ -413,7 +923,7 @@ text-align:center;
                     </div>
                 </td>
                 <td>
-                    <span class="status <?php echo strtolower(str_replace(' ','-',$status)); ?>">
+                    <span  class="status <?php echo strtolower(str_replace(' ','-',$status)); ?>">
                         <?php echo $status; ?>
                     </span>
                 </td>
@@ -430,7 +940,9 @@ text-align:center;
 </section>
 <!-- add-user page -->
 <section id="add-user-page" class="page">
-    <div class="page-title" style="margin-top: 75px; margin-left:250px;">Add New User</div>
+    <div style="display: flex; margin-left:280px;">
+    <div>
+    <div class="page-title" style="margin-top: 75px; margin-left:250px; font-weight: bold; ">Add New User</div>
     <div class="page-subtitle" style="margin-left: 250px; color:#666">Create a new employee account</div>
         <form action="../Backend/add_user.php" method="POST" class="add-new-user-form" id="addUserForm">
 
@@ -514,25 +1026,44 @@ text-align:center;
     </button>
 
 </form>
+</div>
 
+
+</div>
 </section>
 
 <!--Manage Users page-->
-<section id="manage-users-page" class="page">
+<section id="manage-users-page"
+    class="page" <?php
+        echo (
+            isset($_GET['page']) &&
+            $_GET['page'] === 'manage-users'
+        ) ? 'active' : '';
+    ?>>
     <?php
+
 $search = "";
 
-if(isset($_GET['search'])){
-    $search = mysqli_real_escape_string($conn,$_GET['search']);
+if (isset($_GET['search'])) {
+    $search = trim($_GET['search']);
 }
+
+$searchEscaped = mysqli_real_escape_string($conn, $search);
+
 $sql = "SELECT *
         FROM users
-        WHERE first_name LIKE '%$search%'
-        OR last_name LIKE '%$search%'
-        OR email LIKE '%$search%'
+        WHERE user_id LIKE '%$searchEscaped%'
+           OR first_name LIKE '%$searchEscaped%'
+           OR last_name LIKE '%$searchEscaped%'
+           OR email LIKE '%$searchEscaped%'
         ORDER BY user_id DESC";
 
-$result = mysqli_query($conn,$sql);
+$result = mysqli_query($conn, $sql);
+
+if (!$result) {
+    die("Search Query Failed: " . mysqli_error($conn));
+}
+
 ?>
 <div class="page-section" id="dashboard" style="margin-top: 75px; margin-left:250px;">
         <div class="page-header" style="display: flex;">
@@ -540,28 +1071,36 @@ $result = mysqli_query($conn,$sql);
                 <div class="page-title">Manage Users</div>
                 <div class="page-subtitle" style="color:#666"><?php echo $totalUsers; ?> Total Users</div>
             </div>
-            <button class="btn btn-newtask" onclick="showPage('add-user-page',document.querySelector('.nav-item:nth-child(8)'))" style="margin-right: 45px;">
-          <i class="fa-solid fa-plus">  </i>  Add User
-        </button>
+            <button class="btn btn-newtask" onclick="showPage('add-user-page', document.getElementById('addUserNav'))" style="margin-right:45px;">
+                <i class="fa-solid fa-plus"></i>
+                Add User
+            </button>
         </div>
     </div>
- 
+
 </div>
 <div class="manage-users-container">
 
     <!-- Search Box -->
     <div class="table-top">
-        <form method="GET" class="search-form">
-            <div class="search-box">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input
-                    type="text"
-                    name="search"
-                    placeholder="Search users..."
-                    value="<?php echo htmlspecialchars($search); ?>">
-                    
-            </div>
-        </form>
+        <form method="GET" action="dashboard.php" class="search-form">
+
+    <input type="hidden" name="page" value="manage-users">
+
+    <div class="search-box">
+
+        <i class="fa-solid fa-magnifying-glass"></i>
+
+        <input
+            type="text"
+            name="search"
+            placeholder="Search users..."
+            value="<?php echo htmlspecialchars($search); ?>"
+        >
+
+    </div>
+
+</form>
     </div>
     <!-- Table -->
     <table class="users-table">
@@ -647,9 +1186,9 @@ $result = mysqli_query($conn,$sql);
 </div>
 </section>
 <!--Assign Task Section-->
-<section id="assign-task-page" class="page">
-    <div class="page-title" style="margin-top: 75px; margin-left:250px;">Assign Task</div>
-    <div class="page-subtitle" style="margin-left: 250px; color:#666">Create and assign tasks to users</div>
+<section id="assign-task-page" class="page" style="margin-left: 250px;">
+    <div class="page-title" style="margin-top: 75px; margin-left:536px; font-size:20px;"><b>Assign Task</b></div>
+    <div class="page-subtitle" style="margin-left: 478px; color:#666">Create and assign tasks to users</div>
     <div class="assign-card">
 <form method="POST">
 <div class="form-group">
@@ -1066,10 +1605,371 @@ Clear
 </form>
 
 </div>
-</div>
+</div>  
 </section>
 
+<!-- =========================================
+     LEAVE REQUESTS
+========================================= -->
+<section id="leave-request-page" class="page <?php echo ($page === 'leave-requests') ? 'active' : ''; ?>">
+    <div class="leave-page-container">
+
+        <!-- HEADER -->
+        <div class="leave-page-header">
+            <div>
+                <h1>Leave Requests</h1>
+                <p>Review and manage employee leave requests.</p>
+            </div>
+        </div>
+
+        <!-- ==============================
+             STAT CARDS
+        =============================== -->
+        <div class="leave-summary">
+            <div class="leave-summary-card">
+                <div class="leave-summary-icon pending-icon">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <span>Pending</span>
+                    <strong>
+                        <?php
+                        $pendingLeaveCount = mysqli_fetch_assoc(
+                            mysqli_query(
+                                $conn,
+                                "SELECT COUNT(*) AS total
+                                 FROM leave_requests
+                                 WHERE status='Pending'"
+                            )
+                        )['total'];
+                        echo $pendingLeaveCount;
+                        ?>
+                    </strong>
+                </div>
+            </div>
+
+            <div class="leave-summary-card">
+                <div class="leave-summary-icon approved-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div>
+                    <span>Approved</span>
+                    <strong>
+                        <?php
+                        $approvedLeaveCount = mysqli_fetch_assoc(
+                            mysqli_query(
+                                $conn,
+                                "SELECT COUNT(*) AS total
+                                 FROM leave_requests
+                                 WHERE status='Approved'"
+                            )
+                        )['total'];
+                        echo $approvedLeaveCount;
+                        ?>
+                    </strong>
+                </div>
+            </div>
+
+            <div class="leave-summary-card">
+                <div class="leave-summary-icon rejected-icon">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div>
+                    <span>Rejected</span>
+                    <strong>
+                        <?php
+                        $rejectedLeaveCount = mysqli_fetch_assoc(
+                            mysqli_query(
+                                $conn,
+                                "SELECT COUNT(*) AS total
+                                 FROM leave_requests
+                                 WHERE status='Rejected'"
+                            )
+                        )['total'];
+                        echo $rejectedLeaveCount;
+                        ?>
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==============================
+             REQUEST TABLE
+        =============================== -->
+        <div class="leave-table-card">
+            <div class="leave-table-top">
+                <div>
+                    <h2>All Leave Requests</h2>
+                    <p>Review employee leave applications.</p>
+                </div>
+            </div>
+            <div class="leave-table-wrapper">
+                <table class="leave-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>EMPLOYEE</th>
+                            <th>LEAVE TYPE</th>
+                            <th>START DATE</th>
+                            <th>END DATE</th>
+                            <th>REASON</th>
+                            <th>STATUS</th>
+                            <th>ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php
+                    if ($leaveResult && mysqli_num_rows($leaveResult) > 0) {
+                        while ($leave = mysqli_fetch_assoc($leaveResult)) {
+                            $employeeName =
+                                $leave['first_name'] . " " .
+                                $leave['last_name'];
+
+                            $initial =
+                                strtoupper(
+                                    substr(
+                                        $leave['first_name'],
+                                        0,
+                                        1
+                                    )
+                                );
+
+                            $status =
+                                $leave['status'];
+
+                            $statusClass =
+                                strtolower(
+                                    str_replace(
+                                        ' ',
+                                        '-',
+                                        $status
+                                    )
+                                );
+                    ?>
+                        <tr>
+                            <!-- ID -->
+                            <td><?php echo $leave['leave_id']; ?></td>
+                            <!-- EMPLOYEE -->
+                            <td>
+                                <div class="leave-employee">
+                                    <div class="leave-avatar">
+                                        <?php echo $initial; ?>
+                                    </div>
+                                    <span>
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $employeeName
+                                        );
+                                        ?>
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- TYPE -->
+                            <td>
+                                <span class="leave-type">
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $leave['leave_type']
+                                    );
+                                    ?>
+                                </span>
+                            </td>
+
+                            <!-- START -->
+                            <td>
+                                <?php
+                                echo date(
+                                    "d M Y",
+                                    strtotime(
+                                        $leave['start_date']
+                                    )
+                                );
+                                ?>
+                            </td>
+
+                            <!-- END -->
+                            <td>
+                                <?php
+                                echo date(
+                                    "d M Y",
+                                    strtotime(
+                                        $leave['end_date']
+                                    )
+                                );
+                                ?>
+                            </td>
+
+                            <!-- REASON -->
+                            <td>
+                                <div class="leave-reason">
+                                    <?php
+                                    $reason =
+                                        $leave['reason'];
+
+                                    if (strlen($reason) > 35) {
+                                        echo htmlspecialchars(
+                                            substr(
+                                                $reason,
+                                                0,
+                                                35
+                                            )
+                                        ) . "...";
+                                    } else {
+                                        echo htmlspecialchars(
+                                            $reason
+                                        );
+                                    }
+                                    ?>
+                                </div>
+                            </td>
+
+                            <!-- STATUS -->
+                            <td>
+                                <span class="leave-status <?php
+                                    echo $statusClass;
+                                ?>">
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $status
+                                    );
+                                    ?>
+                                </span>
+                            </td>
+
+                            <!-- ACTION -->
+                            <td>
+                            <?php
+                            if ($status == "Pending") {
+                            ?>
+                                <div class="leave-actions">
+                                    <a
+                                        href="../Backend/update_leave_status.php?id=<?php echo $leave['leave_id']; ?>&status=Approved"
+                                        class="leave-approve"
+                                        onclick="return confirm('Approve this leave request?')" style="background-color: #264eff; color: white;"
+                                    >
+                                        <i class="fa-solid fa-check"></i>
+                                        Approve
+                                    </a>
+
+                                    <a
+                                        href="../Backend/update_leave_status.php?id=<?php echo $leave['leave_id']; ?>&status=Rejected"
+                                        class="leave-reject"
+                                        onclick="return confirm('Reject this leave request?')" style="background-color: #ff4d4d; color: white;"
+                                    >
+                                        <i class="fa-solid fa-xmark"></i>
+                                        Reject
+                                    </a>
+                                </div>
+                            <?php
+                            } else {
+                            ?>
+                                <span class="action-completed">
+                                    No Action
+                                </span>
+                            <?php
+                            }
+                            ?>
+                            </td>
+                        </tr>
+                    <?php
+                        }
+                    } else {
+                    ?>
+                        <tr>
+                            <td
+                                colspan="8"
+                                class="leave-no-data"
+                            >
+                                <i class="fa-solid fa-calendar-check"></i>
+                                <p>
+                                    No leave requests found.
+                                </p>
+                            </td>
+                        </tr>
+                    <?php
+                    }
+                    ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="reports-page" class="page <?php echo ($page === 'reports') ? 'active' : ''; ?>">
+    <div class="reports-container">
+        <div class="reports-header">
+            <div>
+                <h1>Reports</h1>
+                <p>Task and employee performance overview</p>
+            </div>
+        </div>
+
+        <!-- ============================= -->
+        <!-- TASK STATUS -->
+        <!-- ============================= -->
+        <div class="report-card task-status-card">
+            <div class="report-card-header">
+                <h2>Task Status</h2>
+                <span>Overall task distribution</span>
+            </div>
+            <div class="chart-container doughnut-container">
+                <canvas id="taskStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ============================= -->
+        <!-- EMPLOYEE PERFORMANCE -->
+        <!-- ============================= -->
+        <div class="report-card employee-performance-card">
+            <div class="report-card-header">
+                <h2>Employee Performance</h2>
+                <span>Completed tasks by employee</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="employeePerformanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ============================= -->
+        <!-- COMPLETED TASK TREND -->
+        <!-- ============================= -->
+        <div class="report-card completed-trend-card">
+            <div class="report-card-header">
+                <h2>Completed Task Trend</h2>
+                <span>Last 7 days</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="completedTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+window.taskReportData = {
+    completed: <?php echo $completedTasks; ?>,
+    inProgress: <?php echo $inProgressTasks; ?>,
+    pending: <?php echo $pendingTasks; ?>,
+    overdue: <?php echo $overdueTasks; ?>
+};
+
+window.employeeReportData = {
+    names: <?php echo json_encode($employeeNames); ?>,
+    completed: <?php echo json_encode($employeeCompleted); ?>
+};
+
+window.trendReportData = {
+    labels: <?php echo json_encode($trendLabels); ?>,
+    values: <?php echo json_encode($trendValues); ?>
+};
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="chart.js"></script>
 <script src="dashboard.js"></script>
+
 <script src="../Frontend/add_user.js"></script>
 </body>
 </html>
