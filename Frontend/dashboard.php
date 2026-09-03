@@ -641,99 +641,64 @@ text-align:center;
 /* =========================
    SIDEBAR
 ========================= */
-
 .sidebar {
     position: fixed;
     top: 70.7px;
     left: 0;
-
     width: 230px;
     height: calc(100vh - 50px);
-
     background: #ffffff;
-
     padding: 20px 12px;
-
     box-sizing: border-box;
-
     border-right: 1px solid #e5e7eb;
-
     overflow-y: auto;
-
     z-index: 1000;
 }
-
 
 /* =========================
    SIDEBAR ITEMS
 ========================= */
-
 .sidebar .nav-item {
     display: block;
-
     width: 100%;
-
     margin: 6px 0;
     padding: 0;
-
     list-style: none;
-
     box-sizing: border-box;
-
     border-radius: 8px;
-
     cursor: pointer;
 }
-
 
 /* =========================
    SIDEBAR LINKS
 ========================= */
-
 .sidebar .nav-item a {
     display: flex;
-
     align-items: center;
-
     width: 100%;
-
     min-height: 45px;
-
     padding: 0 15px;
-
     box-sizing: border-box;
-
     text-decoration: none;
-
     color: #555;
-
     border-radius: 8px;
-
     font-size: 14px;
 }
-
 
 /* =========================
    ICON
 ========================= */
-
 .sidebar .nav-item a i {
     width: 20px;
-
     min-width: 20px;
-
     margin-right: 12px;
-
     text-align: center;
-
     color: #666;
 }
-
 
 /* =========================
    HOVER
 ========================= */
-
 .sidebar .nav-item:hover {
     background: #f1f5f9;
 }
@@ -741,24 +706,19 @@ text-align:center;
 .sidebar .nav-item:hover a {
     color: #2563eb;
 }
-
 .sidebar .nav-item:hover a i {
     color: #2563eb;
 }
 
-
 /* =========================
    ACTIVE
 ========================= */
-
 .sidebar .nav-item.active {
     background: #2563eb;
 }
-
 .sidebar .nav-item.active a {
     color: #ffffff;
 }
-
 .sidebar .nav-item.active a i {
     color: #ffffff;
 }
@@ -782,7 +742,7 @@ text-align:center;
     </div>
         </div>
       </div>
-      <button id="logout-btn" onclick="window.location.href='../auth/logout.php'"><i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i>Logout</button>
+      <button id="logout-btn" onclick="window.location.href='../auth/logout.php'"><i class="fa-solid fa-right-from-bracket" style="margin-right: 8px; "></i>Logout</button>
     </nav>
 </header>
 <div style="display: flex;">
@@ -1033,79 +993,217 @@ text-align:center;
 </section>
 
 <!--Manage Users page-->
+<!-- =========================================
+     MANAGE USERS
+========================================= -->
 <section id="manage-users-page"
-    class="page" <?php
-        echo (
-            isset($_GET['page']) &&
-            $_GET['page'] === 'manage-users'
-        ) ? 'active' : '';
-    ?>>
-    <?php
+    class="page <?php echo ($page === 'manage-users') ? 'active' : ''; ?>">
+<?php
 
-$search = "";
-
-if (isset($_GET['search'])) {
-    $search = trim($_GET['search']);
-}
-
-$searchEscaped = mysqli_real_escape_string($conn, $search);
-
+// ==========================================
+// LOAD ALL USERS FOR INITIAL DISPLAY
+// ==========================================
 $sql = "SELECT *
         FROM users
-        WHERE user_id LIKE '%$searchEscaped%'
-           OR first_name LIKE '%$searchEscaped%'
-           OR last_name LIKE '%$searchEscaped%'
-           OR email LIKE '%$searchEscaped%'
         ORDER BY user_id DESC";
 
 $result = mysqli_query($conn, $sql);
 
 if (!$result) {
-    die("Search Query Failed: " . mysqli_error($conn));
+    die("Users Query Failed: " . mysqli_error($conn));
 }
-
 ?>
-<div class="page-section" id="dashboard" style="margin-top: 75px; margin-left:250px;">
-        <div class="page-header" style="display: flex;">
-            <div>
-                <div class="page-title">Manage Users</div>
-                <div class="page-subtitle" style="color:#666"><?php echo $totalUsers; ?> Total Users</div>
-            </div>
-            <button class="btn btn-newtask" onclick="showPage('add-user-page', document.getElementById('addUserNav'))" style="margin-right:45px;">
-                <i class="fa-solid fa-plus"></i>
-                Add User
-            </button>
-        </div>
-    </div>
 
+<!-- =========================================
+     PAGE HEADER
+========================================= -->
+<div class="page-section"
+     style="margin-top:75px; margin-left:250px; margin-right:45px;">
+
+    <div class="page-header"
+         style="display:flex;">
+
+        <div>
+            <div class="page-title">Manage Users</div>
+
+            <div class="page-subtitle"
+                 style="color:#666;">
+                <?php echo $totalUsers; ?> Total Users
+            </div>
+        </div>
+
+        <!-- ADD USER BUTTON -->
+        <button
+            class="btn btn-newtask"
+            onclick="showPage(
+                'add-user-page',
+                document.getElementById('addUserNav')
+            )"
+            style="margin-right:45px;">
+
+            <i class="fa-solid fa-plus"></i>
+            Add User
+        </button>
+    </div>
 </div>
+
+<!-- =========================================
+     USERS TABLE CONTAINER
+========================================= -->
 <div class="manage-users-container">
 
-    <!-- Search Box -->
+    <!-- =====================================
+         SEARCH BOX
+    ====================================== -->
     <div class="table-top">
-        <form method="GET" action="dashboard.php" class="search-form">
 
-    <input type="hidden" name="page" value="manage-users">
+    <form
+        id="userSearchForm"
+        class="user-search-form"
+        onsubmit="searchUsers(event)"
+    >
 
-    <div class="search-box">
+        <!-- SEARCH -->
 
-        <i class="fa-solid fa-magnifying-glass"></i>
+        <div class="search-box">
 
-        <input
-            type="text"
-            name="search"
-            placeholder="Search users..."
-            value="<?php echo htmlspecialchars($search); ?>"
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input
+                type="text"
+                id="userSearch"
+                placeholder="Search by ID, name or email..."
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <!-- DEPARTMENT -->
+
+        <select
+            id="userDepartment"
+            class="user-filter-select" style="margin-left: 590px;"
         >
 
-    </div>
+            <option value="">
+                All Department
+            </option>
 
-</form>
-    </div>
-    <!-- Table -->
+            <?php
+
+            $departmentQuery = "
+                SELECT DISTINCT department
+                FROM users
+                WHERE department IS NOT NULL
+                AND department != ''
+                ORDER BY department ASC
+            ";
+
+            $departmentResult =
+                mysqli_query(
+                    $conn,
+                    $departmentQuery
+                );
+
+            while (
+                $department =
+                mysqli_fetch_assoc(
+                    $departmentResult
+                )
+            ) {
+
+            ?>
+
+                <option value="<?php
+                    echo htmlspecialchars(
+                        $department['department']
+                    );
+                ?>">
+
+                    <?php
+                    echo htmlspecialchars(
+                        $department['department']
+                    );
+                    ?>
+
+                </option>
+
+            <?php } ?>
+
+        </select>
+
+
+        <!-- ROLE -->
+
+        <select
+            id="userRole"
+            class="user-filter-select" style="margin-left: 1px;"
+        >
+
+            <option value="">
+                All Role
+            </option>
+
+            <?php
+
+            $roleQuery = "
+                SELECT DISTINCT role
+                FROM users
+                WHERE role IS NOT NULL
+                AND role != ''
+                ORDER BY role ASC
+            ";
+
+            $roleResult =
+                mysqli_query(
+                    $conn,
+                    $roleQuery
+                );
+
+            while (
+                $role =
+                mysqli_fetch_assoc(
+                    $roleResult
+                )
+            ) {
+
+            ?>
+
+                <option value="<?php
+                    echo htmlspecialchars(
+                        $role['role']
+                    );
+                ?>">
+
+                    <?php
+                    echo htmlspecialchars(
+                        $role['role']
+                    );
+                    ?>
+
+                </option>
+
+            <?php } ?>
+
+        </select>
+
+    </form>
+
+</div>
+
+
+    <!-- =====================================
+         TABLE
+    ====================================== -->
     <table class="users-table">
         <thead>
-            <tr style="background-color: #6fa4d6; border:1px solid #dbe8f5; font-weight:bold;">
+            <tr
+                style="
+                    background-color:#6fa4d6;
+                    border:1px solid #dbe8f5;
+                    font-weight:bold;
+                ">
                 <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
@@ -1116,75 +1214,160 @@ if (!$result) {
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+
+        <!-- IMPORTANT -->
+        <tbody id="usersTableBody">
+
         <?php
-        if(mysqli_num_rows($result)>0){
+        if (mysqli_num_rows($result) > 0) {
+            $sn = 1;
 
-            $sn=1;
+            while ($row = mysqli_fetch_assoc($result)) {
+                $user_id = $row['user_id'];
 
-            while($row=mysqli_fetch_assoc($result)){
+                // Count tasks
+                $task = mysqli_query(
+                    $conn,
+                    "SELECT COUNT(*) AS total
+                     FROM tasks
+                     WHERE user_id='$user_id'"
+                );
 
-                $user_id=$row['user_id'];
+                $taskCount = 0;
+                if ($task) {
+                    $taskData =
+                        mysqli_fetch_assoc($task);
 
-                $task=mysqli_query($conn,
-                "SELECT COUNT(*) AS total
-                FROM tasks
-                WHERE user_id='$user_id'");
+                    $taskCount =
+                        $taskData['total'];
+                }
 
-                $taskCount=mysqli_fetch_assoc($task)['total'];
+                $name =
+                    $row['first_name'] .
+                    " " .
+                    $row['last_name'];
         ?>
             <tr>
-                <td><?php echo $sn++; ?></td>
+                <!-- ID -->
+                <td><?php echo $row['user_id']; ?></td>
+
+                <!-- NAME -->
+                <td><?php echo htmlspecialchars($name); ?></td>
+
+                <!-- EMAIL -->
+                <td><?php echo htmlspecialchars($row['email']); ?></td>
+
+                <!-- DEPARTMENT -->
                 <td>
-                    <?php
-                    echo $row['first_name']." ".$row['last_name'];
-                    ?>
+                    <p style="
+                        border-radius:9px;
+                        background-color:#e4ecff;
+                        color:#08309e;
+                        text-align:center;
+                        padding:5px;
+                        margin:0;
+                    ">
+                        <?php
+                        echo htmlspecialchars(
+                            $row['department']
+                        );
+                        ?>
+                    </p>
                 </td>
-                <td><?php echo $row['email']; ?></td>
-                <td><p style=" border-radius:9px; background-color: #e4ecff; color: #08309e; text-align:center;  "><?php echo $row['department']; ?></p></td>
-                <td><p style=" border-radius:9px; background-color: #e4ecff; color: #08309e; text-align:center;  "><?php echo $row['role']; ?></p></td>
-                <td><?php echo $taskCount; ?> Tasks</td>
+
+                <!-- ROLE -->
+                <td>
+                    <p style="
+                        border-radius:9px;
+                        background-color:#e4ecff;
+                        color:#08309e;
+                        text-align:center;
+                        padding:5px;
+                        margin:0;
+                    ">
+                        <?php
+                        echo htmlspecialchars(
+                            $row['role']
+                        );
+                        ?>
+                    </p>
+                </td>
+
+                <!-- TASKS -->
+                <td><?php echo $taskCount; ?> Tasks </td>
+
+                <!-- STATUS -->
                 <td>
                     <?php
-                    if($row['status']=="Active"){
-                        echo "<span class='badge active' style=' border-radius:9px; background-color: #b4f5c4; color: #008822; text-align:center;'>Active</span>";
-                    }else{
-                        echo "<span class='badge inactive' style=' border-radius:9px; background-color: #fabcbc; color: #c20909; text-align:center;'>Inactive</span>";
+                    if ($row['status'] == "Active") {
+                        echo "
+                            <span
+                                class='badge active'
+                                style='
+                                    border-radius:9px;
+                                    background-color:#b4f5c4;
+                                    color:#008822;
+                                    padding:5px 10px;
+                                '>
+                                Active
+                            </span>
+                        ";
+                    } else {
+                        echo "
+                            <span
+                                class='badge inactive'
+                                style='
+                                    border-radius:9px;
+                                    background-color:#fabcbc;
+                                    color:#c20909;
+                                    padding:5px 10px;
+                                '>
+                                Inactive
+                            </span>
+                        ";
                     }
                     ?>
                 </td>
+
+                <!-- ACTIONS -->
                 <td>
                     <a
-                    href="edit_user.php?id=<?php echo $row['user_id']; ?>"
-                    class="edit-btn">
-
-                    <i class="fa-solid fa-pen-to-square"></i>
-                    Edit
+                        href="edit_user.php?id=<?php echo $row['user_id']; ?>"
+                        class="edit-btn">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        Edit
                     </a>
-
                     <a
-                    href="../Backend/delete_user.php?id=<?php echo $row['user_id']; ?>"
-                    class="delete-btn"
-                    onclick="return confirm('Delete this user?')">
-                    <i class="fa-solid fa-trash"></i>
-                    Delete
+                        href="../Backend/delete_user.php?id=<?php echo $row['user_id']; ?>"
+                        class="delete-btn"
+                        onclick="return confirm('Delete this user?')">
+                        <i class="fa-solid fa-trash"></i>
+                        Delete
                     </a>
                 </td>
             </tr>
         <?php
             }
-        }else{
+        } else {
         ?>
-        <tr>
-            <td colspan="8" style="text-align:center;">
-                No users found.
-            </td>
-        </tr>
-        <?php } ?>
+            <tr>
+                <td
+                    colspan="8"
+                    style="
+                        text-align:center;
+                        padding:30px;
+                    ">
+                    No users found.
+                </td>
+            </tr>
+        <?php
+        }
+        ?>
         </tbody>
     </table>
 </div>
 </section>
+
 <!--Assign Task Section-->
 <section id="assign-task-page" class="page" style="margin-left: 250px;">
     <div class="page-title" style="margin-top: 75px; margin-left:536px; font-size:20px;"><b>Assign Task</b></div>
@@ -1273,166 +1456,184 @@ while($user=mysqli_fetch_assoc($users)){
         MANAGE TASKS
 =========================== -->
 
-<section id="manage-tasks-page" class="page">
-<?php
-$search = "";
-if(isset($_GET['task_search'])){
-    $search = mysqli_real_escape_string($conn,$_GET['task_search']);
-}
-$sql = "SELECT
-            tasks.*,
-            users.first_name,
-            users.last_name
-        FROM tasks
-        INNER JOIN users
-        ON tasks.user_id = users.user_id
-        WHERE
-            tasks.title LIKE '%$search%'
-            OR users.first_name LIKE '%$search%'
-            OR users.last_name LIKE '%$search%'
-        ORDER BY task_id DESC";
+    <section id="manage-tasks-page" class="page">
+        <div class="manage-tasks-container" style="margin-left:240px;">
 
-$result = mysqli_query($conn,$sql);
-?>
+    <?php
+    $sql = "SELECT
+                tasks.*,
+                users.first_name,
+                users.last_name
+            FROM tasks
+            INNER JOIN users
+                ON tasks.user_id = users.user_id
+            ORDER BY tasks.task_id DESC";
 
-<div class="page-header">
-    <div>
-        <h2>Manage Tasks</h2>
-        <p>Manage and monitor all assigned tasks.</p>
+    $result = mysqli_query($conn, $sql);
+
+    if (!$result) {
+        die("Tasks Query Failed: " . mysqli_error($conn));
+    }
+    ?>
+
+    <div class="page-header">
+        <div>
+            <h2>Manage Tasks</h2>
+            <p>Manage and monitor all assigned tasks.</p>
+        </div>
     </div>
-</div>
-<div class="manage-task-card" style="height: 640px; margin-top: 30px;">
-<div class="table-top">
-<form method="GET">
-<div class="search-box">
-<i class="fa-solid fa-magnifying-glass"></i>
-<input type="text" name="task_search" placeholder="Search task..." value="<?php echo htmlspecialchars($search); ?>">
-</div>
-</form>
-</div>
+    <div style="border: 1px solid #dfe6ef; border-radius:10px;">
+    <div class="table-top" >
+        <form id="taskSearchForm" class="task-search-form">
+        
+            <!-- Search -->
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="taskSearch" placeholder="Search by Task ID, task or employee..." autocomplete="off">
+            </div>
 
-<div class="table-responsive">
-<table class="task-table">
+            <!-- Priority -->
+            <select id="taskPriority" class="task-priority-select">
+                <option value="">All Priority</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
 
-<thead>
+             <!-- STATUS -->
+        <select id="taskStatus" class="task-status-select">
+            <option value="">All Status</option>
+            <option value="Completed">Completed</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Pending">Pending</option>
+            <option value="Overdue">Overdue</option>
+        </select>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+    <table class="task-table">
+
+    <thead>
+        <tr>
+            <th>Task ID</th>
+            <th>Task</th>
+            <th>Assigned To</th>
+            <th>Priority</th>
+            <th>Start Date</th>
+            <th>Due Date</th>
+            <th>Progress</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="tasksTableBody">
+
+    <?php
+    if(mysqli_num_rows($result)>0){
+    $sn=1;
+    while($row=mysqli_fetch_assoc($result)){
+    $name=$row['first_name']." ".$row['last_name'];
+    $avatar=strtoupper(substr($row['first_name'],0,1));
+    ?>
+
     <tr>
-        <th>ID</th>
-        <th>Task</th>
-        <th>Assigned To</th>
-        <th>Priority</th>
-        <th>Start Date</th>
-        <th>Due Date</th>
-        <th>Progress</th>
-        <th>Status</th>
-        <th>Actions</th>
-    </tr>
-</thead>
-<tbody>
-
-<?php
-if(mysqli_num_rows($result)>0){
-$sn=1;
-while($row=mysqli_fetch_assoc($result)){
-$name=$row['first_name']." ".$row['last_name'];
-$avatar=strtoupper(substr($row['first_name'],0,1));
-?>
-
-<tr>
-    <td><?php echo $sn++; ?></td>
-    <td>
-        <div class="task-info">
-            <strong><?php echo $row['title']; ?></strong><br>
-            <small><?php echo substr($row['description'],0,40);?>...</small>
-        </div>
-    </td>
-    <td>
-        <div class="employee">
-            <div class="avatar">
-                <?php echo $avatar; ?>
+        <td><?php echo $row['task_id']; ?></td>
+        <td>
+            <div class="task-info">
+                <strong><?php echo $row['title']; ?></strong><br>
+                <small><?php echo substr($row['description'],0,40);?>...</small>
             </div>
-            <div>
-                <?php echo $name; ?>
+        </td>
+        <td>
+            <div class="employee">
+                <div class="avatar">
+                    <?php echo $avatar; ?>
+                </div>
+                <div>
+                    <?php echo $name; ?>
+                </div>
             </div>
-        </div>
-    </td>
-    <td>
-        <?php 
-             if($row['priority']=="High"){
-                echo "<span class='priority high'>High</span>";
+        </td>
+        <td>
+            <?php 
+                if($row['priority']=="High"){
+                    echo "<span class='priority high'>High</span>";
+                    }
+                    elseif($row['priority']=="Medium"){
+                        echo "<span class='priority medium'>Medium</span>";
+                    }
+                    else{
+                        echo "<span class='priority low'>Low</span>";
+                    }
+                ?>
+        </td>
+        <td>
+            <?php
+                echo date("d M Y",strtotime($row['start_date']));
+            ?>
+        </td>
+        <td>
+            <?php
+                echo date("d M Y",strtotime($row['due_date']));
+            ?>
+        </td>
+        <td>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width:<?php echo $row['progress']; ?>%;"></div>
+            </div>
+            <span>
+                <?php echo $row['progress']; ?>%
+            </span>
+        </td>
+        <td>
+            <?php
+                $status=$row['status'];
+                $class="";
+                
+                if($status=="Completed"){
+                    $class="completed";
                 }
-                elseif($row['priority']=="Medium"){
-                    echo "<span class='priority medium'>Medium</span>";
+                elseif($status=="In Progress"){
+                    $class="inprogress";
                 }
                 else{
-                    echo "<span class='priority low'>Low</span>";
+                    $class="pending";
                 }
             ?>
-    </td>
-    <td>
-        <?php
-             echo date("d M Y",strtotime($row['start_date']));
-        ?>
-    </td>
-    <td>
-        <?php
-             echo date("d M Y",strtotime($row['due_date']));
-        ?>
-    </td>
-    <td>
-        <div class="progress-bar">
-            <div class="progress-fill" style="width:<?php echo $row['progress']; ?>%;"></div>
-        </div>
-        <span>
-            <?php echo $row['progress']; ?>%
-        </span>
-    </td>
-    <td>
-        <?php
-             $status=$row['status'];
-             $class="";
-             
-             if($status=="Completed"){
-                $class="completed";
-             }
-             elseif($status=="In Progress"){
-                $class="inprogress";
-             }
-             else{
-                $class="pending";
-             }
-        ?>
-<span class="status <?php echo $class; ?>"><?php echo $status; ?></span>
-    </td>
-        <td>
-            <a href="edit_task.php?id=<?php echo $row['task_id']; ?>" class="action-btn edit">
-                <i class="fa-solid fa-pen"></i>
-            </a>
-            <a href="../Backend/delete_task_process.php?id=<?php echo $row['task_id']; ?>" class="action-btn delete" onclick="return confirm('Delete this task?')">
-                <i class="fa-solid fa-trash"></i>
-            </a>
+    <span class="status <?php echo $class; ?>"><?php echo $status; ?></span>
         </td>
-</tr>
-<?php
-}
-}else{
-?>
+            <td>
+                <a href="edit_task.php?id=<?php echo $row['task_id']; ?>" class="action-btn edit">
+                    <i class="fa-solid fa-pen"></i>
+                </a>
+                <a href="../Backend/delete_task_process.php?id=<?php echo $row['task_id']; ?>" class="action-btn delete" onclick="return confirm('Delete this task?')">
+                    <i class="fa-solid fa-trash"></i>
+                </a>
+            </td>
+    </tr>
+    <?php
+    }
+    }else{
+    ?>
 
-<tr>
-    <td colspan="9" style="text-align:center;padding:25px;">No Tasks Found</td>
-</tr>
+    <tr>
+        <td colspan="9" style="text-align:center;padding:25px;">No Tasks Found</td>
+    </tr>
 
-<?php } ?>
-</tbody>
-</table>
-</div>
-<!-- Pagination (Ready for Future) -->
-<div class="pagination">
-<button disabled>Previous</button>
-<span>Page 1</span>
-<button disabled>Next</button>
-</div>
-</div>
-</section>
+    <?php } ?>
+    </tbody>
+    </table>
+    </div>
+    <!-- Pagination (Ready for Future) -->
+    <div class="pagination">
+    <button disabled>Previous</button>
+    <span>Page 1</span>
+    <button disabled>Next</button>
+    </div>
+    </div>
+    </div>
+    </section>
 
 <!--User Info Profile Page-->
 <section id="user-info-profile-page" class="page">
@@ -1702,6 +1903,25 @@ Clear
                     <h2>All Leave Requests</h2>
                     <p>Review employee leave applications.</p>
                 </div>
+
+                <select
+        id="leaveStatus"
+        class="leave-status-select"
+    >
+        <option value="">
+            All Status
+        </option>
+        <option value="Pending">
+            Pending
+        </option>
+        <option value="Approved">
+            Approved
+        </option>
+        <option value="Rejected">
+            Rejected
+        </option>
+    </select>
+
             </div>
             <div class="leave-table-wrapper">
                 <table class="leave-table">
@@ -1717,7 +1937,7 @@ Clear
                             <th>ACTION</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="leaveTableBody">
                     <?php
                     if ($leaveResult && mysqli_num_rows($leaveResult) > 0) {
                         while ($leave = mysqli_fetch_assoc($leaveResult)) {
@@ -1746,7 +1966,7 @@ Clear
                                     )
                                 );
                     ?>
-                        <tr>
+                        <tr data-leave-status="<?php echo htmlspecialchars($leave['status']); ?>">
                             <!-- ID -->
                             <td><?php echo $leave['leave_id']; ?></td>
                             <!-- EMPLOYEE -->
@@ -1968,7 +2188,7 @@ window.trendReportData = {
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="chart.js"></script>
-<script src="dashboard.js"></script>
+<script src="../Frontend/dashboard.js"></script>
 
 <script src="../Frontend/add_user.js"></script>
 </body>
